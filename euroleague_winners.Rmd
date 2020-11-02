@@ -1,0 +1,334 @@
+---
+title: "Euroleague_winners 2010 onwards"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(eurolig)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+```
+
+
+
+```{r}
+# extract the names of teams participated in 2016
+extractTeams(season = 2016)
+```
+
+
+
+```{r}
+# this is for season 2015-2016
+csk15 <- extractTeamPbp(team = "CSK", season = 2015)
+
+
+csk15_stats <- getPbpStats(csk15)
+```
+
+
+
+```{r}
+# this is for season 2016-2017
+ulk16 <- extractTeamPbp(team = "ULK", season = 2016)
+
+
+
+ulk16_stats <- getPbpStats(ulk16)
+```
+
+```{r}
+# this is for season 2017-2018
+mad17 <- extractTeamPbp(team = "MAD", season = 2017)
+
+
+
+mad17_stats <- getPbpStats(mad17)
+```
+
+
+```{r}
+# this is for season 2018-2019
+csk18 <- extractTeamPbp(team = "CSK", season = 2018)
+
+
+
+csk18_stats <- getPbpStats(csk18)
+```
+
+
+```{r}
+# function to calculate number of two and three pointers by player for all year
+player_yearly_fgm <- function(dataset, TeamCode) {
+  
+  d1 <- dataset %>% 
+      subset(team_code == TeamCode & play_type == "2FGM") %>% 
+      group_by(player_name) %>% 
+      summarise(two_pts = n()) %>% 
+      arrange(desc(two_pts)) %>% 
+    top_n(5, two_pts)
+  
+  d2 <- dataset %>% 
+    subset(team_code == TeamCode & play_type == "3FGM") %>% 
+    group_by(player_name) %>% 
+    summarise(three_pts = n()) %>% 
+    arrange(desc(three_pts)) %>% 
+    top_n(5, three_pts)
+  
+  
+  d1_long <- gather(d1, variable, value, two_pts, factor_key=TRUE)
+  d1_long$variable <- as.character(d1_long$variable)
+  
+  d2_long <- gather(d2, variable, value, three_pts, factor_key=TRUE)
+  d2_long$variable <- as.character(d2_long$variable)
+  
+  d3 <- rbind(d1_long, d2_long)
+  
+  return(d3)
+    
+  
+  
+  
+}
+
+```
+
+
+
+```{r}
+# function to calculate number of two pointers by player for all year
+player_yearly_2fgm <- function(dataset, TeamCode) {
+  dataset %>% 
+    subset(team_code == TeamCode & play_type == "2FGM") %>% 
+    group_by(player_name) %>% 
+    summarise(two_pts = n()) %>% 
+    arrange(desc(two_pts))
+  
+  
+  
+  
+}
+
+```
+
+```{r}
+# function to calculate number of three pointers by player for all year
+player_yearly_3fgm <- function(dataset, TeamCode) {
+  dataset %>% 
+    subset(team_code == TeamCode & play_type == "3FGM") %>% 
+    group_by(player_name) %>% 
+    summarise(three_pts = n()) %>% 
+    arrange(desc(three_pts))
+  
+  
+  
+  
+}
+
+```
+
+
+```{r}
+# function to calculate summary stats by team
+team_yearly_stats <- function(dataset, TeamCode, Year) {
+  dataset %>% 
+  filter(team_code == TeamCode) %>% 
+  summarise(totalfg2 = sum(fg2a),
+            totalfg3 = sum(fg3a),
+            avgfg2 = mean(fg2a),
+            avgfg3 = mean(fg3a),
+            avgfg2_pct = mean(fg2_pct),
+            avgfg3_pct = mean(fg2_pct),
+            totaorb = sum(orb),
+            totaldrb = sum(drb),
+            avgorb = mean(orb),
+            avgdrb = mean(drb)) %>% 
+  mutate(TeamCode = TeamCode,
+         Year = Year) %>%
+  transmute(TeamCode, Year, !!!.)
+  
+  
+  
+  
+}
+
+```
+
+
+```{r}
+
+win15 <- team_yearly_stats(dataset = csk15_stats,
+                          TeamCode = "CSK",
+                          Year = "2015")
+
+win16 <- team_yearly_stats(dataset = ulk16_stats,
+                          TeamCode = "ULK",
+                          Year = "2016")
+
+win17 <- team_yearly_stats(dataset = mad17_stats,
+                          TeamCode = "MAD",
+                          Year = "2017")
+
+win18 <- team_yearly_stats(dataset = csk18_stats,
+                          TeamCode = "CSK",
+                          Year = "2018")
+
+
+tot <- rbind(win15, win16, win17, win18)
+
+
+```
+
+
+```{r}
+# wide to long format
+data_long <- gather(tot, variable, value, totalfg2:avgdrb, factor_key=TRUE)
+data_long$variable <- as.character(data_long$variable)
+```
+
+
+
+
+```{r}
+data_long$NameYear <- paste0(data_long$Year, "-", data_long$TeamCode)
+```
+
+```{r}
+data_long$variable[data_long$variable == "totalfg2"] <- "2pts attempts (Total)"
+data_long$variable[data_long$variable == "totalfg3"] <- "3pts attempts (Total)"
+data_long$variable[data_long$variable == "avgfg2"] <- "2pts attempts (per game)"
+data_long$variable[data_long$variable == "avgfg3"] <- "3pts attempts (per game)"
+data_long$variable[data_long$variable == "avgfg2_pct"] <- "Avg 2pts scored"
+data_long$variable[data_long$variable == "avgfg3_pct"] <- "Avg 3pts scored"
+data_long$variable[data_long$variable == "totaorb"] <- "Off Rbnds (Total)"
+data_long$variable[data_long$variable == "totaldrb"] <- "Def Rbnds (Total)"
+data_long$variable[data_long$variable == "avgorb"] <- "Off Rbnds (per game)"
+data_long$variable[data_long$variable == "avgdrb"] <- "Def Rbnds (per game)"
+```
+
+
+
+#### Add 3pts to 2pts ratio
+
+```{r}
+#{r, fig.width=10, fig.height=20}
+plot1 <- ggplot() +
+  geom_bar(data = data_long, aes(x=NameYear, y=value), stat = "identity") +
+  facet_wrap(~ variable, ncol = 2, scales = "free") +
+    labs(title = "Statistics for Euroleague winners 2015-2018", 
+         x = "Winner", y = "") +
+  theme_minimal() +
+    theme(
+      axis.text.x=element_text(angle = 45, hjust = 1),
+      strip.text = element_text(face = 'bold', hjust = 0),
+      plot.caption = element_text(face = 'italic'),
+      panel.grid.major = element_line('white', size = 0.5),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.ontop = TRUE
+    )
+
+# save the plot
+png("outputs/Euroleague_teams_winners.png",units="in", width=10, height=10, res=300)
+plot1
+dev.off() # Close the file
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+players15 <- player_yearly_fgm(dataset = csk15, TeamCode = "CSK")
+
+players15$variable_f = factor(players15$variable, levels=c('two_pts','three_pts'), 
+                              labels = c('Two points','Three points'))
+
+
+players15_reord <- players15 %>% 
+  ungroup() %>%   # As a precaution / handle in a separate .grouped_df method
+  arrange(variable, desc(value)) %>%   # arrange by facet variables and continuous values
+  mutate(.r = row_number())
+
+
+plot2 <- ggplot() +
+  geom_bar(data=players15_reord, aes(x=.r, y=value), stat = "identity") +
+  facet_wrap(~variable_f, ncol=2, scale = "free_x") +
+  labs(title = "Successful shots in season 2015-2016", 
+         x = "Players", y = "") +
+   scale_x_continuous(breaks = players15_reord$.r, labels = players15_reord$player_name) +
+  theme_minimal() +
+    theme(
+      axis.text.x=element_text(angle = 45, hjust = 1),
+      strip.text = element_text(face = 'bold', hjust = 0),
+      plot.caption = element_text(face = 'italic'),
+      panel.grid.major = element_line('white', size = 0.5),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.ontop = TRUE
+    )
+
+
+# save the plot
+png("outputs/Euroleague_shots15.png",units="in", width=10, height=10, res=300)
+plot2
+dev.off() # Close the file
+
+
+```
+
+
+
+```{r}
+players16 <- player_yearly_fgm(dataset = ulk16, TeamCode = "ULK")
+
+players16$variable_f = factor(players16$variable, levels=c('two_pts','three_pts'), 
+                              labels = c('Two points','Three points'))
+
+
+players16_reord <- players16 %>% 
+  ungroup() %>%   # As a precaution / handle in a separate .grouped_df method
+  arrange(variable, desc(value)) %>%   # arrange by facet variables and continuous values
+  mutate(.r = row_number())
+
+
+plot3 <- ggplot() +
+  geom_bar(data=players16_reord, aes(x=.r, y=value), stat = "identity") +
+  facet_wrap(~variable_f, ncol=2, scale = "free_x") +
+  labs(title = "Successful shots in season 2016-2017", 
+         x = "Players", y = "") +
+   scale_x_continuous(breaks = players16_reord$.r, labels = players16_reord$player_name) +
+  theme_minimal() +
+    theme(
+      axis.text.x=element_text(angle = 45, hjust = 1),
+      strip.text = element_text(face = 'bold', hjust = 0),
+      plot.caption = element_text(face = 'italic'),
+      panel.grid.major = element_line('white', size = 0.5),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.ontop = TRUE
+    )
+
+# save the plot
+png("outputs/Euroleague_shots16.png",units="in", width=10, height=10, res=300)
+plot3
+dev.off() # Close the file
+```
+
+
+
+
+
